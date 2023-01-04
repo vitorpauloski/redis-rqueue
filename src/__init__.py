@@ -3,23 +3,26 @@ from collections.abc import Callable
 from typing import Any
 import logging
 import time
+from threading import Thread
 
 logging.basicConfig(format='%(asctime)s | %(levelname)s | %(message)s', level=logging.INFO)
 
 class Queue:
     def __init__(
         self,
-        user_function:Callable,
+        function:Callable,
+        queue_name:str,
+        threadings:int = 1,
         redis_client:Redis = Redis(),
-        queue_name:str = 'queue',
         success_queue_name:str = None,
         error_queue_name:str = None,
         sleep_time:int = 30
         ) -> None:
 
-        self.user_function = user_function
-        self.redis_client = redis_client
+        self.function = function
         self.queue_name = queue_name
+        self.threadings = threadings
+        self.redis_client = redis_client
         self.success_queue_name = success_queue_name or f'{self.queue_name}:success'
         self.error_queue_name = error_queue_name or f'{self.queue_name}:error'
         self.sleep_time = sleep_time
@@ -35,22 +38,31 @@ class Queue:
             logging.error(f'Unable to connect to redis. {e}')
             return False
 
-    def run_user_function(self, parameter:Any) -> None:
+    def run_function(self, parameter:Any) -> None:
         try:
-            self.user_function(parameter)
+            self.function(parameter)
             self.redis_client.rpush(self.success_queue_name, parameter)
             logging.info(f'User function successfully executed with parameter "{parameter}"')
         except Exception as e:
             self.redis_client.rpush(self.error_queue_name, parameter)
             logging.error(f'Failed to execute user function with parameter "{parameter}". {e}')
 
+    def run_function_threading(self, parameters:list) -> None:
+        threads = []
+        for parameter in parameters:
+            thread = Thread(target=self.run_function, args=(parameter,))
+            threads.append(thread)
+            thread.start()
+        for thread in threads:
+            thread.join()
+
     def start(self) -> None:
         if not self.test_redis_connection():
             return None
         while True:
-            queue = self.redis_client.lpop(self.queue_name, count=1) or []
+            queue = self.redis_client.lpop(self.queue_name, count=self.threadings) or []
             if len(queue) > 0:
-                self.run_user_function(queue[0])
+                self.run_function_threading(queue)
             else:
                 logging.info(f'The Redis queue "{self.queue_name}" is empty, sleeping for {self.sleep_time} second(s).')
                 time.sleep(self.sleep_time)
