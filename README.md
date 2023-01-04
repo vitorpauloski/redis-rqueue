@@ -10,9 +10,14 @@ pip install -e .
 ## Usage
 
 ```python
-from rqueue import QueueExecutor
+from rqueue import QueueFiller QueueExecutor
 from . import my_function
 
-queue = QueueExecutor(my_function, queue_name='queue', retry=True, threadings=4)
-queue.execute()
+ELEMENTS = [0, 1, 2, 3]
+
+filler = QueueFiller('queue', ELEMENTS)
+filler.fill()
+
+executor = QueueExecutor('queue', my_function, retry=True, threadings=4)
+executor.execute()
 ```
