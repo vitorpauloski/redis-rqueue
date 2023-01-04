@@ -10,7 +10,7 @@ pip install -e .
 ## Usage
 
 ```python
-from rqueue import QueueFiller QueueExecutor
+from rqueue import QueueFiller, QueueExecutor
 from . import my_function
 
 ELEMENTS = [0, 1, 2, 3]
