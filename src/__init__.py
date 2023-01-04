@@ -12,6 +12,7 @@ class Queue:
         self,
         function:Callable,
         queue_name:str,
+        retry:bool = False,
         threadings:int = 1,
         redis_client:Redis = Redis(),
         success_queue_name:str = None,
@@ -21,11 +22,15 @@ class Queue:
 
         self.function = function
         self.queue_name = queue_name
+        self.retry = retry
         self.threadings = threadings
         self.redis_client = redis_client
         self.success_queue_name = success_queue_name or f'{self.queue_name}:success'
         self.error_queue_name = error_queue_name or f'{self.queue_name}:error'
         self.sleep_time = sleep_time
+
+        if retry:
+            self.error_queue_name = queue_name
 
         redis_client.connection_pool.connection_kwargs['decode_responses'] = True
 
