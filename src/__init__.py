@@ -1,5 +1,6 @@
 from redis import Redis
 from collections.abc import Callable
+from typing import Any
 import logging
 import time
 
@@ -34,19 +35,22 @@ class Queue:
             logging.error(f'Unable to connect to redis. {e}')
             return False
 
-    def run(self) -> None:
+    def run_user_function(self, parameter:Any) -> None:
+        try:
+            self.user_function(parameter)
+            self.redis_client.rpush(self.success_queue_name, parameter)
+            logging.info(f'User function successfully executed with parameter "{parameter}"')
+        except Exception as e:
+            self.redis_client.rpush(self.error_queue_name, parameter)
+            logging.error(f'Failed to execute user function with parameter "{parameter}". {e}')
+
+    def start(self) -> None:
         if not self.test_redis_connection():
             return None
         while True:
             queue = self.redis_client.lpop(self.queue_name, count=1) or []
             if len(queue) > 0:
-                try:
-                    self.user_function(queue[0])
-                    self.redis_client.rpush(self.success_queue_name, queue[0])
-                    logging.info(f'User function successfully executed with parameter "{queue[0]}"')
-                except Exception as e:
-                    self.redis_client.rpush(self.error_queue_name, queue[0])
-                    logging.error(f'Failed to execute user function with parameter "{queue[0]}". {e}')
+                self.run_user_function(queue[0])
             else:
                 logging.info(f'The Redis queue "{self.queue_name}" is empty, sleeping for {self.sleep_time} second(s).')
                 time.sleep(self.sleep_time)
