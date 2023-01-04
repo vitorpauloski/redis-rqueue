@@ -7,7 +7,7 @@ from threading import Thread
 
 logging.basicConfig(format='%(asctime)s | %(levelname)s | %(message)s', level=logging.INFO)
 
-class Queue:
+class QueueExecutor:
     def __init__(
         self,
         function:Callable,
@@ -61,7 +61,7 @@ class Queue:
         for thread in threads:
             thread.join()
 
-    def start(self) -> None:
+    def execute(self) -> None:
         if not self.test_redis_connection():
             return None
         while True:
@@ -71,3 +71,35 @@ class Queue:
             else:
                 logging.info(f'The Redis queue "{self.queue_name}" is empty, sleeping for {self.sleep_time} second(s).')
                 time.sleep(self.sleep_time)
+
+class QueueFiller:
+    def __init__(
+        self,
+        queue_name:str,
+        elements:list,
+        redis_client:Redis = Redis()
+        ) -> None:
+
+        self.queue_name = queue_name
+        self.elements = elements
+        self.redis_client = redis_client
+
+        redis_client.connection_pool.connection_kwargs['decode_responses'] = True
+
+    def test_redis_connection(self) -> bool:
+        try:
+            self.redis_client.ping()
+            logging.info('Successfully connected to Redis.')
+            return True
+        except Exception as e:
+            logging.error(f'Unable to connect to redis. {e}')
+            return False
+    
+    def fill(self) -> None:
+        if not self.test_redis_connection():
+            return None
+        try:
+            pushed = self.redis_client.rpush(self.queue_name, *self.elements)
+            logging.info(f'The Redis queue "{self.queue_name}" was successfuly filled with {pushed} elements.')
+        except Exception as e:
+            logging.error(f'Failed to fill "{self.queue_name}" queue. {e}')
