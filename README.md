@@ -1,6 +1,15 @@
-# rqueue
+# redis-rqueue
 
 ## Installation
+
+### With pip
+
+```console
+pip install --upgrade pip setuptools
+pip install redis-rqueue
+```
+
+### from source
 
 ```console
 pip install --upgrade pip setuptools
