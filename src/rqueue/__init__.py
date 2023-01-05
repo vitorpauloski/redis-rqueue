@@ -8,11 +8,11 @@ from threading import Thread
 logging.basicConfig(format='%(asctime)s | %(levelname)s | %(message)s', level=logging.INFO)
 
 class Queue:
-    def __init__(self, queue_name:str, redis_client:Redis=Redis()) -> None:
+    def __init__(self, queue_name:str, redis_host:str='localhost', redis_port:int=6379, redis_db:int=0) -> None:
         self.queue_name = queue_name
-        self.redis_client = redis_client
+        self.redis_client = Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
 
-        self.redis_client.connection_pool.connection_kwargs['decode_responses'] = True
+        self.test_redis_connection()
 
     def test_redis_connection(self) -> bool:
         try:
@@ -24,13 +24,11 @@ class Queue:
             return False
 
 class QueueFiller(Queue):
-    def __init__(self, queue_name:str, elements:list, redis_client:Redis=Redis()) -> None:
-        super().__init__(queue_name, redis_client=redis_client)
+    def __init__(self, queue_name:str, elements:list, redis_host:str='localhost', redis_port:int=6379, redis_db:int=0) -> None:
+        super().__init__(queue_name, redis_host=redis_host, redis_port=redis_port, redis_db=redis_db)
         self.elements = elements
 
     def fill(self) -> None:
-        if not self.test_redis_connection():
-            return None
         try:
             self.redis_client.rpush(self.queue_name, *self.elements)
             logging.info(f'The Redis queue "{self.queue_name}" was successfuly filled with {len(self.elements)} elements.')
@@ -42,7 +40,9 @@ class QueueExecutor(Queue):
         self,
         queue_name:str,
         function:Callable,
-        redis_client:Redis = Redis(),
+        redis_host:str = 'localhost',
+        redis_port:int = 6379,
+        redis_db:int = 0,
         retry:bool = False,
         threadings:int = 1,
         success_queue_name:str = None,
@@ -50,7 +50,7 @@ class QueueExecutor(Queue):
         sleep_time:int = 30
         ) -> None:
 
-        super().__init__(queue_name, redis_client)
+        super().__init__(queue_name, redis_host=redis_host, redis_port=redis_port, redis_db=redis_db)
         self.function = function
         self.retry = retry
         self.threadings = threadings
@@ -80,8 +80,6 @@ class QueueExecutor(Queue):
             thread.join()
 
     def execute(self) -> None:
-        if not self.test_redis_connection():
-            return None
         while True:
             queue = self.redis_client.lpop(self.queue_name, count=self.threadings) or []
             if len(queue) > 0:
