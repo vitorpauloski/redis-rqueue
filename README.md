@@ -22,11 +22,10 @@ pip install -e .
 from rqueue import QueueFiller, QueueExecutor
 from . import my_function
 
-ELEMENTS = [0, 1, 2, 3]
+filler = QueueFiller('queue')
+filler.from_list([0, 1, 2, 3], flush=True)
+filler.from_csv('file.csv', flush=True)
 
-filler = QueueFiller('queue', ELEMENTS)
-filler.fill()
-
-executor = QueueExecutor('queue', my_function, retry=True, threadings=4)
+executor = QueueExecutor('queue', my_function, retry=True, threadings=2)
 executor.execute()
 ```

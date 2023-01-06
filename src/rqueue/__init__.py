@@ -4,6 +4,7 @@ from typing import Any
 import logging
 import time
 from threading import Thread
+import csv
 
 logging.basicConfig(format='%(asctime)s | %(levelname)s | %(message)s', level=logging.INFO)
 
@@ -24,16 +25,29 @@ class Queue:
             return False
 
 class QueueFiller(Queue):
-    def __init__(self, queue_name:str, elements:list, redis_host:str='localhost', redis_port:int=6379, redis_db:int=0) -> None:
+    def __init__(self, queue_name:str, redis_host:str='localhost', redis_port:int=6379, redis_db:int=0) -> None:
         super().__init__(queue_name, redis_host=redis_host, redis_port=redis_port, redis_db=redis_db)
-        self.elements = elements
 
-    def fill(self) -> None:
+    def from_list(self, elements:list, flush:bool=False) -> None:
+        if flush:
+            self.redis_client.delete(self.queue_name)
+            logging.info(f'The Redis queue "{self.queue_name}" was deleted.')
         try:
-            self.redis_client.rpush(self.queue_name, *self.elements)
-            logging.info(f'The Redis queue "{self.queue_name}" was successfuly filled with {len(self.elements)} elements.')
+            self.redis_client.rpush(self.queue_name, *elements)
+            logging.info(f'The Redis queue "{self.queue_name}" was successfuly filled with {len(elements)} elements.')
         except Exception as e:
             logging.error(f'Failed to fill "{self.queue_name}" queue. {e}')
+
+    def from_csv(self, path:str, flush:bool=False) -> None:
+        try:
+            with open(path) as f:
+                reader = csv.reader(f)
+                elements = list(reader)
+                elements = [element[0] for element in elements]
+        except Exception as e:
+            logging.error(f'Failed to open file. {e}')
+            return
+        self.from_list(elements, flush=flush)
 
 class QueueExecutor(Queue):
     def __init__(
