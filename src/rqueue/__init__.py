@@ -13,41 +13,20 @@ class Queue:
         self.queue_name = queue_name
         self.redis_client = Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
 
-        self.test_redis_connection()
-
-    def test_redis_connection(self) -> bool:
-        try:
-            self.redis_client.ping()
-            logging.info('Successfully connected to Redis.')
-            return True
-        except Exception as e:
-            logging.error(f'Unable to connect to redis. {e}')
-            return False
-
-class QueueFiller(Queue):
-    def __init__(self, queue_name:str, redis_host:str='localhost', redis_port:int=6379, redis_db:int=0) -> None:
-        super().__init__(queue_name, redis_host=redis_host, redis_port=redis_port, redis_db=redis_db)
-
-    def from_list(self, elements:list, flush:bool=False) -> None:
+        self.redis_client.ping()
+        logging.info('Successfully connected to Redis.')
+    
+    def fill_from_list(self, elements:list, flush:bool=False) -> None:
         if flush:
             self.redis_client.delete(self.queue_name)
             logging.info(f'The Redis queue "{self.queue_name}" was deleted.')
-        try:
-            self.redis_client.rpush(self.queue_name, *elements)
-            logging.info(f'The Redis queue "{self.queue_name}" was successfuly filled with {len(elements)} elements.')
-        except Exception as e:
-            logging.error(f'Failed to fill "{self.queue_name}" queue. {e}')
+        self.redis_client.rpush(self.queue_name, *elements)
+        logging.info(f'The Redis queue "{self.queue_name}" was filled with {len(elements)} elements.')
 
-    def from_csv(self, path:str, flush:bool=False) -> None:
-        try:
-            with open(path) as f:
-                reader = csv.reader(f)
-                elements = list(reader)
-                elements = [element[0] for element in elements]
-        except Exception as e:
-            logging.error(f'Failed to open file. {e}')
-            return
-        self.from_list(elements, flush=flush)
+    def fill_from_csv(self, csv_path:str, flush:bool=False) -> None:
+        with open(csv_path) as f:
+            elements = [element[0] for element in list(csv.reader(f))]
+        self.fill_from_list(elements, flush=flush)
 
 class QueueExecutor(Queue):
     def __init__(

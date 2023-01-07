@@ -19,12 +19,12 @@ pip install -e .
 ## Usage
 
 ```python
-from rqueue import QueueFiller, QueueExecutor
+from rqueue import Queue, QueueExecutor
 from . import my_function
 
-filler = QueueFiller('queue')
-filler.from_list([0, 1, 2, 3], flush=True)
-filler.from_csv('file.csv', flush=True)
+queue = Queue('queue')
+queue.fill_from_list([0, 1, 2, 3], flush=True)
+queue.fill_from_csv('file.csv', flush=True)
 
 executor = QueueExecutor('queue', my_function, retry=True, threadings=2)
 executor.execute()
