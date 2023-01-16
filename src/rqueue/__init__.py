@@ -5,6 +5,7 @@ import logging
 import time
 from threading import Thread
 import csv
+import glob
 
 logging.basicConfig(format='%(asctime)s | %(levelname)s | %(message)s', level=logging.INFO)
 
@@ -65,6 +66,10 @@ class Queue:
     def fill_from_csv(self, csv_path:str, flush:bool=True) -> None:
         with open(csv_path) as f:
             elements = [element[0] for element in list(csv.reader(f))]
+        self.fill_from_list(elements, flush=flush)
+
+    def fill_from_folder(self, folder:str, suffix:str='', flush:bool=True):
+        elements = [i.removeprefix(f'{folder}/').removesuffix(f'{suffix}') for i in glob.glob(f'{folder}/*{suffix}')]
         self.fill_from_list(elements, flush=flush)
 
     def execute(self, function:Callable, threadings:int=2, retry:bool=True, sleep_time:int=30) -> None:
