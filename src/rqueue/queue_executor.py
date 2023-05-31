@@ -24,7 +24,8 @@ class QueueExecutor:
         success_queue: str,
         error_queue: str,
         maximum_attempts: int,
-        sleep_time: int
+        sleep_time: int,
+        execute_on_error: Callable[[str], None] = None
     ) -> None:
 
         self.redis_client = redis_client
@@ -36,6 +37,7 @@ class QueueExecutor:
         self.error_queue = error_queue
         self.maximum_attempts = maximum_attempts
         self.sleep_time = sleep_time
+        self.execute_on_error = execute_on_error
 
         self.redis_client.connection_pool.connection_kwargs['decode_responses'] = True
         self.redis_client.ping()
@@ -62,6 +64,8 @@ class QueueExecutor:
                 except Exception as e:
                     self.redis_client.lrem(self.doing_queue, 0, parameter)
                     if self.attempt >= self.maximum_attempts:
+                        if self.execute_on_error:
+                            self.execute_on_error(parameter)
                         self.redis_client.rpush(self.error_queue, parameter)
                     else:
                         self.redis_client.rpush(
